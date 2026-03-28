@@ -19,6 +19,7 @@
       --green:     #3ecf8e;
       --yellow:    #f5a623;
       --red:       #e05252;
+      --teal:      #06b6d4;
       --font: 'Inter', system-ui, -apple-system, sans-serif;
       --radius: 10px;
       --sidebar-w: 220px;
@@ -166,6 +167,26 @@
     .progress-bar { height: 6px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
     .progress-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), #9b51e0); transition: width 0.4s; }
 
+    /* COSTS TAB */
+    .cost-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 20px; }
+    .cost-stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+    .cost-stat .label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 8px; }
+    .cost-stat .value { font-size: 1.8rem; font-weight: 800; color: var(--white); }
+    .cost-stat .value.green { color: var(--green); }
+    .cost-stat .value.teal { color: var(--teal); }
+    .cost-stat .sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; }
+    .cost-bar-wrap { margin-bottom: 20px; }
+    .cost-bar-label { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; }
+    .cost-bar { height: 8px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
+    .cost-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--teal), var(--accent)); transition: width 0.5s; }
+    .cost-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    .cost-table th { text-align: left; color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    .cost-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); }
+    .cost-table tr:last-child td { border-bottom: none; }
+    .cost-table .amount { color: var(--yellow); font-weight: 600; font-family: monospace; }
+    .cost-table .service-badge { display: inline-block; background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.25); color: var(--teal); border-radius: 4px; padding: 1px 7px; font-size: 0.7rem; font-weight: 600; }
+    .reset-note { font-size: 0.75rem; color: var(--text-muted); margin-top: 10px; text-align: right; }
+
     /* RESPONSIVE */
     @media (max-width: 680px) {
       .sidebar { width: 56px; min-width: 56px; }
@@ -205,6 +226,10 @@
         <span class="nav-text">Docs</span>
       </button>
       <div class="nav-label">Operations</div>
+      <button data-tab="costs">
+        <span class="nav-icon">💰</span>
+        <span class="nav-text">API Costs</span>
+      </button>
       <button data-tab="team">
         <span class="nav-icon">👥</span>
         <span class="nav-text">Team</span>
@@ -387,6 +412,54 @@
         </div>
       </div>
 
+      <!-- COSTS TAB -->
+      <div class="tab" id="tab-costs">
+
+        <div class="cost-summary">
+          <div class="cost-stat">
+            <div class="label">This Month</div>
+            <div class="value teal" id="cost-month">$0.00</div>
+            <div class="sub" id="cost-month-label">Resets the 1st</div>
+          </div>
+          <div class="cost-stat">
+            <div class="label">Total Calls</div>
+            <div class="value" id="cost-calls">0</div>
+            <div class="sub">this month</div>
+          </div>
+          <div class="cost-stat">
+            <div class="label">All-Time Spend</div>
+            <div class="value green" id="cost-alltime">$0.00</div>
+            <div class="sub">since tracking began</div>
+          </div>
+        </div>
+
+        <div class="cost-bar-wrap">
+          <div class="cost-bar-label">
+            <span>Monthly Budget Usage</span>
+            <span id="cost-budget-pct">0% of $10.00 budget</span>
+          </div>
+          <div class="cost-bar"><div class="cost-bar-fill" id="cost-bar" style="width:0%"></div></div>
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden;">
+          <table class="cost-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Service</th>
+                <th>Action</th>
+                <th>Cost</th>
+              </tr>
+            </thead>
+            <tbody id="cost-rows">
+              <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:32px;">No API calls tracked yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="reset-note">💡 Monthly totals reset automatically on the 1st. Bob logs every Gemini API call here.</p>
+
+      </div><!-- /tab-costs -->
+
       <!-- TEAM TAB -->
       <div class="tab" id="tab-team">
         <div class="card">
@@ -424,7 +497,7 @@
 </div><!-- /app -->
 
 <script>
-  const TAB_LABELS = { projects:'Projects', memory:'Memory', calendar:'Calendar', docs:'Docs', team:'Team', log:'Daily Log' };
+  const TAB_LABELS = { projects:'Projects', memory:'Memory', calendar:'Calendar', docs:'Docs', costs:'API Costs', team:'Team', log:'Daily Log' };
   const navBtns = document.querySelectorAll('nav button[data-tab]');
   const topbarTitle = document.getElementById('topbar-title');
 
@@ -482,6 +555,60 @@
   const saved = localStorage.getItem(todayKey());
   if (saved) logInput.value = saved;
 
+  // ── API Cost Tracker ──────────────────────────────────────────────────────
+  const MONTHLY_BUDGET = 10.00;
+
+  function getCurrentMonth() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+
+  function loadCostData() {
+    const raw = localStorage.getItem('gemini_usage');
+    if (!raw) return { monthlyTotals: {}, allTime: { calls: 0, totalCostUSD: 0 } };
+    try { return JSON.parse(raw); } catch { return { monthlyTotals: {}, allTime: { calls: 0, totalCostUSD: 0 } }; }
+  }
+
+  function renderCosts() {
+    const data = loadCostData();
+    const month = getCurrentMonth();
+    const monthData = data.monthlyTotals?.[month] || { calls: 0, totalCostUSD: 0, breakdown: [] };
+    const allTime = data.allTime || { calls: 0, totalCostUSD: 0 };
+
+    document.getElementById('cost-month').textContent = '$' + (monthData.totalCostUSD || 0).toFixed(4);
+    document.getElementById('cost-calls').textContent = monthData.calls || 0;
+    document.getElementById('cost-alltime').textContent = '$' + (allTime.totalCostUSD || 0).toFixed(4);
+
+    const pct = Math.min(100, ((monthData.totalCostUSD || 0) / MONTHLY_BUDGET) * 100);
+    document.getElementById('cost-bar').style.width = pct + '%';
+    document.getElementById('cost-budget-pct').textContent = pct.toFixed(1) + '% of $' + MONTHLY_BUDGET.toFixed(2) + ' budget';
+
+    // Reset note
+    const d = new Date();
+    const daysLeft = new Date(d.getFullYear(), d.getMonth()+1, 1) - d;
+    const daysNum = Math.ceil(daysLeft / 86400000);
+    document.getElementById('cost-month-label').textContent = `Resets in ${daysNum} day${daysNum !== 1 ? 's' : ''}`;
+
+    // Table rows
+    const tbody = document.getElementById('cost-rows');
+    const breakdown = (monthData.breakdown || []).slice().reverse();
+    if (breakdown.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:32px;">No API calls tracked yet.</td></tr>';
+    } else {
+      tbody.innerHTML = breakdown.map(entry => `
+        <tr>
+          <td style="color:var(--text-muted);font-size:0.78rem;">${entry.date || ''}</td>
+          <td><span class="service-badge">${entry.service || 'Gemini'}</span></td>
+          <td style="color:var(--text-muted);">${entry.action || ''}</td>
+          <td class="amount">$${(entry.costUSD || 0).toFixed(4)}</td>
+        </tr>`).join('');
+    }
+  }
+
+  renderCosts();
+  // Re-render when tab is clicked
+  document.querySelector('[data-tab="costs"]').addEventListener('click', renderCosts);
+
   let saveTimer;
   logInput.addEventListener('input', () => {
     clearTimeout(saveTimer);
@@ -497,5 +624,6 @@
 </script>
 </body>
 </html>
+
 
 
